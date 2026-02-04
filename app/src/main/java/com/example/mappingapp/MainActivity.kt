@@ -3,7 +3,6 @@ package com.example.mappingapp
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.graphics.Paint.Align
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -14,42 +13,88 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.mappingapp.ui.theme.MappingAppTheme
+import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.maps.Style
+import org.ramani.compose.CameraPosition
+import org.ramani.compose.MapLibre
+
 
 class MainActivity : ComponentActivity(), LocationListener {
     val viewModel : GpsViewModel by viewModels()
+    val styleBuilder = Style.Builder().fromUri("https://tiles.openfreemap.org/styles/bright")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         startGPS()
         setContent {
-            displayLatLon()
             MappingAppTheme {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(9f),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        DisplayMap()
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        DisplayLatLon()
+                    }
+                }
             }
         }
     }
 
     @Composable
-    fun displayLatLon() {
+    fun DisplayMap() {
+
+        // Get Lat and on values from view model
+        val lat = remember { mutableStateOf(0.0) }
+        viewModel.latLiveData.observe(this){
+            lat.value = it
+        }
+        val lon = remember { mutableStateOf(0.0) }
+        viewModel.latLiveData.observe(this) {
+            lon.value = it
+        }
+
+        MapLibre(
+            modifier = Modifier.fillMaxSize().border(BorderStroke(5.dp, Color.Red)),
+            styleBuilder = styleBuilder,
+            cameraPosition = CameraPosition(
+                target = LatLng(lat.value, lon.value),
+                zoom = 14.0
+            )
+        )
+
+    }
+
+    @Composable
+    fun DisplayLatLon() {
 
         // Get Lat and on values from view model
         val lat = remember { mutableStateOf(0.0) }
@@ -61,12 +106,12 @@ class MainActivity : ComponentActivity(), LocationListener {
             lon.value = it
         }
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxSize().height(40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom
         ) {
             Row(
-                modifier = Modifier.fillMaxWidth().height(20.dp),
+                modifier = Modifier.fillMaxWidth().padding(4.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
 
@@ -74,7 +119,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                 Text(latStr)
             }
             Row(
-                modifier = Modifier.fillMaxWidth().height(20.dp),
+                modifier = Modifier.fillMaxWidth().padding(4.dp),
                 horizontalArrangement = Arrangement.Start
             ) {
                 val lonStr = "Longitude: ${lon.value}"
