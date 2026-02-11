@@ -63,22 +63,22 @@ class MainActivity : ComponentActivity(), LocationListener {
                 val enterLatLonHeight = 40.dp
 
 
-                    Column(modifier=Modifier.fillMaxSize()) {
+                Column(modifier=Modifier.fillMaxSize()) {
 
-                        DisplayLatLon()
+                    DisplayLatLon()
 
-                        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
 
-                            DisplayMap(
-                                Modifier.align(Alignment.TopCenter)
-                                    .height(this.maxHeight - enterLatLonHeight)
-                            )
+                        DisplayMap(
+                            Modifier.align(Alignment.TopCenter)
+                                .height(this.maxHeight - enterLatLonHeight)
+                        )
 
-                            EnterLatLon(
-                                Modifier.height(enterLatLonHeight).align(Alignment.BottomCenter)
-                            )
-                        }
+                        EnterLatLon(
+                            Modifier.height(enterLatLonHeight).align(Alignment.BottomCenter)
+                        )
                     }
+                }
 
             }
         }
