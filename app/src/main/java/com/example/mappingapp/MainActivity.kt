@@ -111,8 +111,12 @@ class MainActivity : ComponentActivity(), LocationListener {
 
         // Get Lat and on values from view model
         var latLon by remember { mutableStateOf(LatLng(0.0, 0.0)) }
-        viewModel.latLonLiveData.observe(this){
+        var zoom by remember { mutableStateOf(1.0) }
+        viewModel.latLonLiveData.observe(this) {
             latLon = it
+        }
+        viewModel.zoomLiveData.observe(this) {
+            zoom = it
         }
 
         MapLibre(
@@ -122,7 +126,7 @@ class MainActivity : ComponentActivity(), LocationListener {
             styleBuilder = styleBuilder,
             cameraPosition = CameraPosition(
                 target = latLon,
-                zoom = 12.0
+                zoom = zoom
             )
         ){
             ShowCheckpointsOnMap()
@@ -335,8 +339,7 @@ fun SettingsScreen(gpsViewModel: GpsViewModel, onOpenMap: () -> Unit) {
                     latState = it
                     try {
                         val lat = latState.toDouble()
-                        val lon = lonState.toDouble()
-                        gpsViewModel.latLon = LatLng(lat, lon)
+                        gpsViewModel.setLat(lat)
                     }
                     catch (_: Exception) {
 
@@ -356,9 +359,8 @@ fun SettingsScreen(gpsViewModel: GpsViewModel, onOpenMap: () -> Unit) {
                 onValueChange = {
                     lonState = it
                     try {
-                        val lat = latState.toDouble()
                         val lon = lonState.toDouble()
-                        gpsViewModel.latLon = LatLng(lat, lon)
+                        gpsViewModel.setLon(lon)
                     } catch (_: Exception) {
 
                     }
@@ -377,9 +379,8 @@ fun SettingsScreen(gpsViewModel: GpsViewModel, onOpenMap: () -> Unit) {
                 onValueChange = {
                     zoomState = it
                     try {
-                        val lat = latState.toDouble()
-                        val lon = lonState.toDouble()
-                        gpsViewModel.latLon = LatLng(lat, lon)
+                        val zoom = zoomState.toDouble()
+                        gpsViewModel.zoom = zoom
                     }
                     catch (_: Exception) {
 
