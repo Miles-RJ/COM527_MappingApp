@@ -7,16 +7,15 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
+import android.telephony.CarrierConfigManager.Gps
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,18 +23,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-import androidx.core.text.isDigitsOnly
 import com.example.mappingapp.ui.theme.MappingAppTheme
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.Style
@@ -44,6 +46,9 @@ import org.ramani.compose.Circle
 import org.ramani.compose.MapLibre
 import org.ramani.compose.Polygon
 import org.ramani.compose.Polyline
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.composable
 
 
 class MainActivity : ComponentActivity(), LocationListener {
@@ -58,28 +63,45 @@ class MainActivity : ComponentActivity(), LocationListener {
             it.latLon = LatLng(50.9079, -1.4015)
         }
         setContent {
+            val navController = rememberNavController()
             MappingAppTheme {
 
-                val enterLatLonHeight = 40.dp
-
-
-                Column(modifier=Modifier.fillMaxSize()) {
-
-                    DisplayLatLon()
-
-                    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-
-                        DisplayMap(
-                            Modifier.align(Alignment.TopCenter)
-                                .height(this.maxHeight - enterLatLonHeight)
-                        )
-
-                        EnterLatLon(
-                            Modifier.height(enterLatLonHeight).align(Alignment.BottomCenter)
-                        )
+                Column {
+                    NavHost(navController, startDestination = "settingsScreen") {
+                        composable("settingsScreen") {
+                            SettingsScreen(viewModel) {
+                                navController.navigate("mapScreen")
+                            }
+                        }
+                        composable("mapScreen") {
+                            MapScreen() {
+                                navController.navigate("settingsScreen") {popUpTo("settingsScreen")}
+                            }
+                        }
                     }
                 }
+            }
+        }
+    }
 
+    @Composable
+    fun MapScreen(onOpenSettings: () -> Unit) {
+
+        Column(modifier=Modifier.fillMaxSize()) {
+
+            Button(onClick = onOpenSettings) {
+                Text("Open Settings")
+            }
+
+            DisplayLatLon()
+
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+
+                DisplayMap(
+                    Modifier
+                        .align(Alignment.TopCenter)
+                        .height(this.maxHeight)
+                )
             }
         }
     }
@@ -88,9 +110,9 @@ class MainActivity : ComponentActivity(), LocationListener {
     fun DisplayMap(modifier: Modifier = Modifier) {
 
         // Get Lat and on values from view model
-        val latLon = remember { mutableStateOf(LatLng(0.0, 0.0)) }
+        var latLon by remember { mutableStateOf(LatLng(0.0, 0.0)) }
         viewModel.latLonLiveData.observe(this){
-            latLon.value = it
+            latLon = it
         }
 
         MapLibre(
@@ -99,7 +121,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                 .border(BorderStroke(2.dp, Color.Red)),
             styleBuilder = styleBuilder,
             cameraPosition = CameraPosition(
-                target = latLon.value,
+                target = latLon,
                 zoom = 12.0
             )
         ){
@@ -110,34 +132,40 @@ class MainActivity : ComponentActivity(), LocationListener {
     @Composable
     fun EnterLatLon(modifier: Modifier = Modifier) {
 
-        val latState = remember { mutableStateOf("") }
-        val lonState = remember { mutableStateOf("") }
+        var latState by remember { mutableStateOf("") }
+        var lonState by remember { mutableStateOf("") }
 
         Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
         )  {
             // Latitude Text Field
-            TextField(
-                modifier = Modifier.padding(2.dp).weight(1f),
+            OutlinedTextField(
+                modifier = Modifier
+                    .padding(2.dp)
+                    .weight(1f),
                 singleLine = true,
-                value = latState.value,
-                onValueChange = {latState.value = it}
+                value = latState,
+                onValueChange = {latState = it}
             )
             // Longitude Text Field
-            TextField(
-                modifier = Modifier.padding(2.dp).weight(1f),
+            OutlinedTextField(
+                modifier = Modifier
+                    .padding(2.dp)
+                    .weight(1f),
                 singleLine = true,
-                value = lonState.value,
-                onValueChange = {lonState.value = it}
+                value = lonState,
+                onValueChange = {lonState = it}
             )
             // Go Button
             Button(
-                modifier = Modifier.padding(2.dp).weight(1f),
+                modifier = Modifier
+                    .padding(2.dp)
+                    .weight(1f),
                 onClick = {
                     try {
-                        val lat = latState.value.toDouble()
-                        val lon = lonState.value.toDouble()
+                        val lat = latState.toDouble()
+                        val lon = lonState.toDouble()
                         viewModel.let { it.latLon = LatLng(lat, lon) }
                     }
                     catch (e: Exception) {
@@ -172,7 +200,7 @@ class MainActivity : ComponentActivity(), LocationListener {
             vertices = stMarysCoordinates,
             opacity = 0f,
             borderColor = "Green",
-            borderWidth = 3f
+            borderWidth = 1.5f
         )
 
         // Route to the railway station
@@ -191,11 +219,11 @@ class MainActivity : ComponentActivity(), LocationListener {
     fun DisplayLatLon(modifier: Modifier = Modifier) {
 
         // Get Lat and on values from view model
-        val lat = remember { mutableStateOf(0.0) }
-        val lon = remember { mutableStateOf(0.0) }
+        var lat by remember { mutableStateOf(0.0) }
+        var lon by remember { mutableStateOf(0.0) }
         viewModel.latLonLiveData.observe(this){
-            lat.value = it.latitude
-            lon.value = it.longitude
+            lat = it.latitude
+            lon = it.longitude
         }
 
         Column(
@@ -210,7 +238,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                 horizontalArrangement = Arrangement.Start
             ) {
 
-                val latLonStr = "Latitude: ${lat.value} \t Longitude: ${lon.value}"
+                val latLonStr = "Latitude: ${lat} \t Longitude: ${lon}"
                 Text(latLonStr)
             }
         }
@@ -271,4 +299,93 @@ class MainActivity : ComponentActivity(), LocationListener {
 
     }
 
+}
+
+@Composable
+fun SettingsScreen(gpsViewModel: GpsViewModel, onOpenMap: () -> Unit) {
+
+    var latState by remember { mutableStateOf("") }
+    var lonState by remember { mutableStateOf("") }
+    var zoomState by remember { mutableStateOf("") }
+
+    Column (modifier = Modifier.fillMaxSize().padding(10.dp)){
+        Row (modifier = Modifier.fillMaxWidth()) {
+            Button(onClick = {
+                onOpenMap()
+            }) {
+                Text("Open Map")
+            }
+        }
+        Row (modifier = Modifier.fillMaxWidth()) {
+            Text("Settings Screen")
+        }
+
+        val settingsLabelModifier = Modifier.padding(4.dp).weight(1f)
+        val settingsEntryModifier = Modifier.padding(2.dp).weight(2f)
+
+        // Latitude
+        Row (modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Latitude: ", modifier=settingsLabelModifier)
+
+            OutlinedTextField(
+                modifier = settingsEntryModifier,
+                singleLine = true,
+                value = latState,
+                onValueChange = {
+                    latState = it
+                    try {
+                        val lat = latState.toDouble()
+                        val lon = lonState.toDouble()
+                        gpsViewModel.latLon = LatLng(lat, lon)
+                    }
+                    catch (_: Exception) {
+
+                    }
+                }
+            )
+        }
+
+        // Longitude
+        Row (modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Longitude: ", modifier=settingsLabelModifier)
+
+            OutlinedTextField(
+                modifier = settingsEntryModifier,
+                singleLine = true,
+                value = lonState,
+                onValueChange = {
+                    lonState = it
+                    try {
+                        val lat = latState.toDouble()
+                        val lon = lonState.toDouble()
+                        gpsViewModel.latLon = LatLng(lat, lon)
+                    } catch (_: Exception) {
+
+                    }
+                }
+            )
+        }
+
+        // Zoom
+        Row (modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Zoom: ", modifier=settingsLabelModifier)
+
+            OutlinedTextField(
+                modifier = settingsEntryModifier,
+                singleLine = true,
+                value = zoomState,
+                onValueChange = {
+                    zoomState = it
+                    try {
+                        val lat = latState.toDouble()
+                        val lon = lonState.toDouble()
+                        gpsViewModel.latLon = LatLng(lat, lon)
+                    }
+                    catch (_: Exception) {
+
+                    }
+                }
+            )
+        }
+    }
 }
