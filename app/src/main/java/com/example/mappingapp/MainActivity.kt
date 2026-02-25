@@ -7,7 +7,6 @@ import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
-import android.telephony.CarrierConfigManager.Gps
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,20 +22,43 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Button
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationDrawerItem
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.mappingapp.ui.theme.MappingAppTheme
 import org.maplibre.android.geometry.LatLng
@@ -49,13 +71,16 @@ import org.ramani.compose.Polyline
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.compose.composable
+import kotlinx.coroutines.launch
 
 
 class MainActivity : ComponentActivity(), LocationListener {
     val viewModel : GpsViewModel by viewModels()
     val liveLocation = false
+    var showCheckpoints = mutableStateOf(false)
     val styleBuilder = Style.Builder().fromUri("https://tiles.openfreemap.org/styles/bright")
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         startGPS()
@@ -63,19 +88,110 @@ class MainActivity : ComponentActivity(), LocationListener {
             it.latLon = LatLng(50.9079, -1.4015)
         }
         setContent {
+            val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+            val coroutineScope = rememberCoroutineScope()
             val navController = rememberNavController()
             MappingAppTheme {
 
-                Column {
-                    NavHost(navController, startDestination = "settingsScreen") {
-                        composable("settingsScreen") {
-                            SettingsScreen(viewModel) {
-                                navController.navigate("mapScreen")
+
+                Scaffold(
+                    topBar = {
+                        TopAppBar(
+                            title = { Text("Mapping App") },
+                            colors = TopAppBarDefaults.topAppBarColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                titleContentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            actions = {
+                                IconButton( // hamburger menu button
+                                    onClick = {
+                                        if (drawerState.isOpen) {
+                                            coroutineScope.launch(){
+                                            drawerState.close()
+                                                }
+                                        }
+                                        else {
+                                            coroutineScope.launch() {
+                                                drawerState.open()
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Icon(Icons.Filled.Menu, "Menu")
+                                }
+                            }
+                        )
+                    },
+
+                    bottomBar = {
+                        NavigationBar {
+                            NavigationBarItem(  // Map icon
+                                label = { Text("Map") },
+                                icon = { Icon(
+                                    painter = painterResource(R.drawable.map_24dp_1f1f1f_fill0_wght400_grad0_opsz24),
+                                    "Map") },
+                                onClick = { navController.navigate("mapScreen") },
+                                selected = false
+                            )
+
+                            NavigationBarItem(  // Settings icon
+                                label = { Text("Settings") },
+                                icon = { Icon(Icons.Filled.Settings, "Settings") },
+                                onClick = { navController.navigate("settingsScreen") { popUpTo("settingsScreen") } },
+                                selected = false
+                            )
+                        }
+                    },
+
+                    floatingActionButton = {
+                        AddClearButton("Show Checkpoints") {
+                            showCheckpoints.value = !showCheckpoints.value
+                        }
+                    }
+                ) { innerPadding ->
+
+                    ModalNavigationDrawer(
+                        modifier = Modifier.padding(innerPadding),
+                        drawerState = drawerState,
+                        drawerContent = {
+                            ModalDrawerSheet {
+                                Column {
+                                    NavigationDrawerItem( // Map menu item
+                                        selected = false,
+                                        label = { Text("Map") },
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                drawerState.close()
+                                            }
+                                            navController.navigate("mapScreen")
+                                        }
+                                    )
+                                    NavigationDrawerItem( // Settings menu item
+                                        selected = false,
+                                        label = { Text("Settings") },
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                drawerState.close()
+                                            }
+                                            navController.navigate("settingsScreen") { popUpTo("settingsScreen") }
+                                        }
+                                    )
+                                }
                             }
                         }
-                        composable("mapScreen") {
-                            MapScreen() {
-                                navController.navigate("settingsScreen") {popUpTo("settingsScreen")}
+                    ) {
+                        Column() {
+                            NavHost(navController, startDestination = "settingsScreen") {
+                                composable("settingsScreen") {
+                                    SettingsScreen(viewModel) {
+                                        navController.navigate("mapScreen")
+                                    }
+                                }
+                                composable("mapScreen") {
+                                    MapScreen() {
+                                        navController.navigate("settingsScreen") { popUpTo("settingsScreen") }
+                                    }
+                                }
                             }
                         }
                     }
@@ -84,12 +200,34 @@ class MainActivity : ComponentActivity(), LocationListener {
         }
     }
 
+
+    @Composable
+    fun AddClearButton(contentDescription: String, onClick: () -> Unit) {
+        var iconIndex by remember { mutableStateOf(0) }
+        val icons = arrayOf(
+            Icons.Filled.Add,
+            Icons.Filled.Clear
+        )
+
+        FloatingActionButton(
+            onClick = {
+                onClick()
+                iconIndex = (iconIndex+1) % icons.size
+            },
+            content = {
+                Icon(imageVector = icons[iconIndex], contentDescription = contentDescription)
+            }
+        )
+
+    }
+
     @Composable
     fun MapScreen(onOpenSettings: () -> Unit) {
 
         Column(modifier=Modifier.fillMaxSize()) {
 
             Button(onClick = onOpenSettings) {
+                Icon(Icons.Filled.Settings, "Settings Icon", modifier = Modifier.padding(4.dp))
                 Text("Open Settings")
             }
 
@@ -129,7 +267,9 @@ class MainActivity : ComponentActivity(), LocationListener {
                 zoom = zoom
             )
         ){
-            ShowCheckpointsOnMap()
+            if (showCheckpoints.value) {
+                ShowCheckpointsOnMap()
+            }
         }
     }
 
@@ -317,6 +457,7 @@ fun SettingsScreen(gpsViewModel: GpsViewModel, onOpenMap: () -> Unit) {
             Button(onClick = {
                 onOpenMap()
             }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back Arrow", modifier = Modifier.padding(4.dp))
                 Text("Open Map")
             }
         }
